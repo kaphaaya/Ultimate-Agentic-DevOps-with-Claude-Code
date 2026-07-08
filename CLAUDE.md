@@ -4,62 +4,61 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Static HTML/CSS portfolio website deployed to AWS using S3 + CloudFront, provisioned with Terraform, and automated via GitHub Actions.
+Static HTML/CSS portfolio website deployed to AWS using S3 and CloudFront, provisioned with Terraform, and automated via GitHub Actions.
+
+Used in the **DevOps Micro Internship (DMI)** for teaching Linux, Nginx, and deployment fundamentals.
+
+- **Type**: Static site (no JS, no build step)
+- **Host**: AWS S3 + CloudFront (CI/CD automated)
+- **Size**: ~1,750 lines (613 HTML + 1,145 CSS)
+- **Responsive**: Mobile-first (breakpoints: 900px, 768px, 600px)
 
 ## Architecture
 
-### Application (Static Site)
-- **index.html** — Single-page portfolio (About, Services, Courses, Books, Community, Contact)
-- **style.css** — All styling (~1145 lines), mobile-first responsive (breakpoints: 900px, 768px, 600px)
-- **privacy.html / terms.html** — Standalone pages with inline styles
-- **images/** — Static assets (logo, profile, course thumbnails, hero background)
-- Pure HTML5 + CSS3, no JavaScript, no build step
-
-### Infrastructure (`terraform/`)
-- AWS S3 bucket for static site hosting (private, OAC-based access)
-- CloudFront distribution as CDN with S3 origin
-- GitHub OIDC provider + IAM role for keyless CI/CD auth
-- Terraform state stored in S3 backend with DynamoDB locking
-- All resources tagged with `Project` and `Environment`
-
-### CI/CD (`.github/workflows/`)
-- GitHub Actions workflow triggers on push to `main`
-- Syncs site files to S3, then invalidates CloudFront cache
-- Uses OIDC for AWS authentication (no long-lived keys)
-
-## MCP Servers (`.mcp.json`)
-
-Two MCP servers are configured for Claude Code:
-- **aws** (`awslabs.aws-api-mcp-server`) — Direct AWS API access for querying and managing resources
-- **terraform** (`hashicorp/terraform-mcp-server`) — Terraform operations via Docker, workspace mounted at `/workspace`
-
-AWS credentials and region are configured in `.claude/settings.local.json` (gitignored), not in `.mcp.json`. This keeps secrets out of version control and provides a single source of truth for all tools.
-
-## Custom Agents (`.claude/agents/`)
-
-This project has 4 specialized subagents. Use them by name when delegating tasks:
-- **tf-writer** — generates Terraform code (has Write access + project memory)
-- **security-auditor** — audits TF for security issues (Read-only, Sonnet)
-- **cost-optimizer** — reviews infra cost (Read-only, Haiku)
-- **drift-detector** — detects state drift (Bash, Haiku)
-
-## Skills (`.claude/skills/`)
-
-All infrastructure and deployment tasks are handled via skills. Do not write Terraform or CI/CD code manually — use the appropriate skill. Action skills have `disable-model-invocation: true` (manual only). The `project-scope` skill has `user-invocable: false` (auto-loaded by Claude as background knowledge).
+Pure HTML5 and CSS3. No JavaScript. No build step. No framework.
 
 ```
-/scaffold-terraform [region] [name]  → Generate all Terraform files (uses tf-writer agent)
-/scaffold-cicd [aws-account-id]      → Generate GitHub Actions + OIDC IAM role
-/tf-plan                             → Run terraform plan + risk analysis
-/tf-apply                            → Run terraform apply + verify
-/deploy                              → Sync S3 + invalidate CloudFront
-/infra-status                        → Health dashboard of all resources
-/infra-audit                         → Parallel security + cost + drift audit (forked context)
-/setup-gh-actions [create|validate]  → Create or validate CI workflow
-/tf-destroy                          → Safe destroy with confirmation
-project-scope                        → Background knowledge: AWS service constraints (auto-loaded)
-/commit                              → Auto-generate commit message (built-in)
-/compact                             → Compress long conversation context (built-in)
+index.html          — Main portfolio (About, Services, Courses, Books, Contact)
+style.css           — All styling (~1145 lines), mobile-first responsive
+privacy.html        — Standalone page with inline styles
+terms.html          — Standalone page with inline styles
+images/             — Static assets (logo, profile, hero background, course thumbnails)
+.github/workflows/  — GitHub Actions: auto-sync to S3 + CloudFront invalidation on push to main
+.claude/skills/     — Custom skills for infrastructure setup (optional, not deployed to site)
+terraform/          — Infrastructure as Code (S3, CloudFront, OIDC, state management)
+README.md           — DMI student guide for manual Nginx deployment
+```
+
+## Editing Content
+
+**Site content**: Edit `index.html` or `style.css` directly. Push to `main` → GitHub Actions auto-deploys to S3.
+
+**Ownership proof (DMI requirement)**: Add deployment details to the footer in `index.html`:
+```html
+<p><strong>Deployed by:</strong> [Name] | [Group] | [Date]</p>
+```
+
+**Images**: Place in `images/` folder, reference as `<img src="images/filename" alt="...">` or `background-image: url('images/filename')`.
+
+**New pages**: Create standalone `.html` files with inline `<style>` tags (matches structure of `privacy.html` and `terms.html`).
+
+## Deployment
+
+### Automated (Production)
+Push to `main` → GitHub Actions:
+1. Syncs all files to S3 (`pravinmishradmi-site-production`)
+2. Invalidates CloudFront cache (distribution `E3V6O6MRE2E21P`)
+3. Excludes: `.git/`, `.github/`, `.claude/`, `terraform/`, `*.md`
+
+Use the `/deploy` skill to manually trigger the same workflow locally (for debugging).
+
+### Manual (Student Exercise)
+Deploy to Ubuntu VM via Nginx (see README.md for full steps):
+```bash
+sudo apt install nginx
+sudo cp -r . /var/www/html/
+sudo systemctl start nginx
+# Access via http://<public-ip>
 ```
 
 ## Commands
@@ -70,21 +69,79 @@ cd terraform && terraform init
 cd terraform && terraform plan
 cd terraform && terraform apply
 
-# Local preview
+# Preview locally
 open index.html
 
-# Manual S3 sync (CI does this automatically)
-aws s3 sync . s3://$BUCKET_NAME --exclude "terraform/*" --exclude ".git/*" --exclude ".github/*" --exclude "*.md" --exclude ".claude/*"
+# Manual S3 sync (if needed)
+aws s3 sync . s3://pravinmishradmi-site-production \
+  --delete \
+  --exclude ".git/*" \
+  --exclude ".github/*" \
+  --exclude ".claude/*" \
+  --exclude "terraform/*" \
+  --exclude "*.md"
+
+# Invalidate CloudFront cache
+aws cloudfront create-invalidation \
+  --distribution-id E3V6O6MRE2E21P \
+  --paths "/*"
 ```
 
-## Safety Layers
-1. **UserPromptSubmit hook** — catches destructive intent ("delete all", "nuke", "wipe") before Claude starts
-2. **PreToolUse hook** — blocks dangerous commands (terraform destroy, aws s3 rm) at execution time
-3. **Permissions** — auto-allows safe reads, blocks IAM and rm -rf
-4. **PostToolUse hook** — logs all terraform apply executions to `.claude/deploy.log`
-
 ## Conventions
-- Terraform files use `terraform/` directory with standard layout (main.tf, variables.tf, outputs.tf)
-- GitHub Actions uses OIDC — no stored AWS access keys
-- All infrastructure changes go through Terraform — never modify AWS resources manually
-- Site content changes deploy automatically via GitHub Actions on push to main
+
+- **All infrastructure changes go through Terraform** — Never modify AWS resources manually
+- **No JavaScript in this project** — Keep it pure HTML5 and CSS3
+- **CSS uses mobile-first approach** — Define mobile styles first, then use `@media (min-width: ...)` for breakpoints at 900px, 768px, and 600px
+
+## Infrastructure Skills (Optional)
+
+These skills set up optional infrastructure (not required for the basic site). Use only if expanding the project:
+
+- `/scaffold-terraform [region] [name]` — Generate Terraform for AWS resources
+- `/scaffold-cicd [aws-account-id]` — Generate GitHub Actions + OIDC IAM
+- `/tf-plan` — Preview infrastructure changes
+- `/tf-apply` — Apply infrastructure changes
+- `/infra-status` — Check resource health
+
+If you use these skills, they will create a `terraform/` directory and agents (not deployed to the site).
+
+## Style Guide
+
+- **Mobile-first CSS**: Define mobile styles first, then use `@media (min-width: ...)` for larger screens
+- **Responsive breakpoints**: 600px, 768px, 900px (already defined in style.css)
+- **Font stack**: CSS includes Font Awesome icons via CDN
+- **Colors**: Check existing CSS for the palette (look for hex/rgb values in style.css)
+- **Spacing**: Use consistent margins/padding (review style.css for existing patterns)
+
+## Common Tasks
+
+```bash
+# Update portfolio content
+edit index.html          # Add new sections, update text
+
+# Add new images
+# 1. Place image in images/ folder
+# 2. Reference in index.html: <img src="images/new.png" alt="description">
+# 3. Push to main (auto-deploys)
+
+# Test responsive design locally
+# 1. open index.html
+# 2. Inspect → Toggle device toolbar (Chrome DevTools)
+# 3. Test at 600px, 768px, 900px, 1200px widths
+
+# Check deployment status
+# → Visit https://pravinmishradmi-site-production.s3.amazonaws.com (if S3 public access enabled)
+# → Or check GitHub Actions tab in this repo
+```
+
+## Safety
+
+Never put secrets in this file. No API keys, passwords, or AWS credentials.
+
+## Notes
+
+- No build step, no dependencies, no npm/yarn required
+- AWS credentials for deployment are managed via GitHub OIDC (no long-lived keys stored)
+- GitHub Actions workflow only runs on push to `main`; other branches don't deploy
+- `.claude/skills/` is for Claude Code operators only; not deployed to the site
+- Terraform and agent infrastructure (if scaffolded) is also not deployed to the site
