@@ -87,25 +87,15 @@ aws cloudfront create-invalidation \
   --paths "/*"
 ```
 
-## Conventions
+## Development Guide
+
+### Conventions
 
 - **All infrastructure changes go through Terraform** — Never modify AWS resources manually
 - **No JavaScript in this project** — Keep it pure HTML5 and CSS3
 - **CSS uses mobile-first approach** — Define mobile styles first, then use `@media (min-width: ...)` for breakpoints at 900px, 768px, and 600px
 
-## Infrastructure Skills (Optional)
-
-These skills set up optional infrastructure (not required for the basic site). Use only if expanding the project:
-
-- `/scaffold-terraform [region] [name]` — Generate Terraform for AWS resources
-- `/scaffold-cicd [aws-account-id]` — Generate GitHub Actions + OIDC IAM
-- `/tf-plan` — Preview infrastructure changes
-- `/tf-apply` — Apply infrastructure changes
-- `/infra-status` — Check resource health
-
-If you use these skills, they will create a `terraform/` directory and agents (not deployed to the site).
-
-## Style Guide
+### Style Guide
 
 - **Mobile-first CSS**: Define mobile styles first, then use `@media (min-width: ...)` for larger screens
 - **Responsive breakpoints**: 600px, 768px, 900px (already defined in style.css)
@@ -113,7 +103,7 @@ If you use these skills, they will create a `terraform/` directory and agents (n
 - **Colors**: Check existing CSS for the palette (look for hex/rgb values in style.css)
 - **Spacing**: Use consistent margins/padding (review style.css for existing patterns)
 
-## Common Tasks
+### Common Tasks
 
 ```bash
 # Update portfolio content
@@ -133,6 +123,18 @@ edit index.html          # Add new sections, update text
 # → Visit https://pravinmishradmi-site-production.s3.amazonaws.com (if S3 public access enabled)
 # → Or check GitHub Actions tab in this repo
 ```
+
+## Infrastructure Skills (Optional)
+
+These skills set up optional infrastructure (not required for the basic site). Use only if expanding the project:
+
+- `/scaffold-terraform [region] [name]` — Generate Terraform for AWS resources
+- `/scaffold-cicd [aws-account-id]` — Generate GitHub Actions + OIDC IAM
+- `/tf-plan` — Preview infrastructure changes
+- `/tf-apply` — Apply infrastructure changes
+- `/infra-status` — Check resource health
+
+If you use these skills, they will create a `terraform/` directory and agents (not deployed to the site).
 
 ## Safety
 
