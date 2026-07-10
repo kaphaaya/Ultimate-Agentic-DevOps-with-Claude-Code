@@ -67,7 +67,7 @@ resource "aws_iam_role_policy" "github_actions_policy" {
         Action = [
           "cloudfront:CreateInvalidation"
         ]
-        Resource = "arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:distribution/${aws_cloudfront_distribution.main.id}"
+        Resource = "*"
       }
     ]
   })
