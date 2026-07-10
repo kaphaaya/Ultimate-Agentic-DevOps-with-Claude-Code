@@ -1,0 +1,2 @@
+- [CSS Styling Reference](reference_css_styling.md) — Hero gradient (#1a1a2e to #16213e) and responsive breakpoints (600px, 768px, 900px)
+- [Never suggest JavaScript additions](feedback_no_javascript.md) — Pure HTML/CSS by design for DMI educational purposes; no JavaScript recommendations
